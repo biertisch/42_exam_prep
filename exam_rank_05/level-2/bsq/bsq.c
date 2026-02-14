@@ -92,10 +92,10 @@ static int validate_row(char* row, int width, t_map* map)
 
 static int parse_rows(FILE* file, t_map* map)
 {
-	char* line = NULL;
-	size_t len = 0;
 	for (int i = 0; i < map->height; i++)
 	{
+		char* line = NULL;
+		size_t len = 0;
 		int read = getline(&line, &len, file);
 		if (read < 1)
 		{
@@ -124,8 +124,6 @@ static int parse_rows(FILE* file, t_map* map)
 			return 0;
 		}
 		free(line);
-		line = NULL;
-		len = 0;
 	}
 	return 1;
 }
