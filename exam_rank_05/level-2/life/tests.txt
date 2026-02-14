@@ -1,3 +1,4 @@
+$> echo 'sdxddssaaww' | ./a.out 5 5 0 | cat -e
 $
 OOO $
 O O $

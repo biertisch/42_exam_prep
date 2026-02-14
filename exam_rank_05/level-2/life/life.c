@@ -1,65 +1,61 @@
 #include "life.h"
 
+static void print_board(t_game* game)
+{
+	for (int i = 0; i < game->height; i++)
+	{
+		for (int j = 0; j < game->width; j++)
+			putchar(game->board[i][j]);
+		putchar('\n');
+	}
+}
+
 static void free_board(char** board)
 {
 	if (!board)
 		return;
+
 	for (int i = 0; board[i]; i++)
 		free(board[i]);
 	free(board);
 }
 
-static void print_board(t_game* game)
-{
-	for (int row = 0; row < game->height; row++)
-	{
-		for (int col = 0; col < game->width; col++)
-		{
-			putchar(game->board[row][col]);
-		}
-		putchar('\n');
-	}
-}
-
 static int init_board(t_game* game, char*** board)
 {
 	if (!game || !board)
-		return -1;
+		return 0;
 
-	(*board) = calloc(game->height + 1, sizeof(char*));
-	if (!(*board))
-		return -1;
+	*board = calloc(game->height + 1, sizeof(char*));
+	if (!*board)
+		return 0;
 
 	for (int i = 0; i < game->height; i++)
 	{
 		(*board)[i] = calloc(game->width + 1, sizeof(char));
 		if (!(*board)[i])
 		{
-			free_board((*board));
-			return -1;
+			free_board(*board);
+			return 0;
 		}
 		for (int j = 0; j < game->width; j++)
 			(*board)[i][j] = game->dead;
 	}
-
-	return 0;
+	return 1;
 }
 
 static int count_neighbours(t_game* game, int x, int y)
 {
 	int count = 0;
-
-	for (int row = x - 1; row <= x + 1; row++)
+	for (int i = x - 1; i <= x + 1; i++)
 	{
-		for (int col = y - 1; col <= y + 1; col++)
+		for (int j = y - 1; j <= y + 1; j++)
 		{
-			if (row == x && col == y)
+			if (i == x && j == y)
 				continue;
-
-			if (row >= 0 && row < game->height
-				&& col >= 0 && col < game->width
-				&& game->board[row][col] == game->alive)
-				count++;
+			if (i >= 0 && i < game->height
+				&& j >= 0 && j < game->width
+				&& game->board[i][j] == game->alive)
+				++count;
 		}
 	}
 	return count;
@@ -67,118 +63,118 @@ static int count_neighbours(t_game* game, int x, int y)
 
 static int play(t_game* game)
 {
-	char** temp;
-	if (init_board(game, &temp))
-	{
-		free_board(game->board);
-		return -1;
-	}
+	if (!game)
+		return 0;
 
-	for (int row = 0; row < game->height; row++)
+	char** temp;
+	if (!init_board(game, &temp))
+		return 0;
+
+	for (int i = 0; i < game->height; i++)
 	{
-		for (int col = 0; col < game->width; col++)
+		for (int j = 0; j < game->width; j++)
 		{
-			int neighbours = count_neighbours(game, row, col);
-			if (game->board[row][col] == game->alive && (neighbours < 2 || neighbours > 3))
-				temp[row][col] = game->dead;
-			else if (game->board[row][col] == game->dead && neighbours == 3)
-				temp[row][col] = game->alive;
+			int neighbours = count_neighbours(game, i, j);
+			if (game->board[i][j] == game->alive && (neighbours < 2 || neighbours > 3))
+				temp[i][j] = game->dead;
+			else if (game->board[i][j] == game->dead && neighbours == 3)
+				temp[i][j] = game->alive;
 			else
-				temp[row][col] = game->board[row][col];
+				temp[i][j] = game->board[i][j];
 		}
 	}
 
 	free_board(game->board);
 	game->board = temp;
-	return 0;
+	return 1;
 }
 
-static int draw_board(t_game* game)
+static int draw(t_game* game)
 {
-	int ret = 0;
-	char buffer;
-	ret = read(STDIN_FILENO, &buffer, 1);
-	while (ret > 0)
+	if (!game)
+		return 0;
+
+	int len;
+	char c;
+	int count = 1;
+
+	len = read(STDIN_FILENO, &c, count);
+	while (len > 0)
 	{
-		switch (buffer)
+		switch (c)
 		{
 			case 'w':
 				if (game->x > 0)
-					game->x--;
+					--game->x;
 				break;
-
 			case 'a':
 				if (game->y > 0)
-					game->y--;
+					--game->y;
 				break;
-
 			case 's':
 				if (game->x < game->height - 1)
-					game->x++;
+					++game->x;
 				break;
-
 			case 'd':
 				if (game->y < game->width - 1)
-					game->y++;
+					++game->y;
 				break;
-
 			case 'x':
 				game->drawing = !(game->drawing);
 				break;
-
 			default:
 				break;
 		}
 
-		if (game->drawing
-			&& game->x >= 0 && game->x < game->height
+		if (game->drawing && game->x >= 0 && game->x < game->height
 			&& game->y >= 0 && game->y < game->width)
 			game->board[game->x][game->y] = game->alive;
 
-		ret = read(STDIN_FILENO, &buffer, 1);
+		len = read(STDIN_FILENO, &c, count);
 	}
-
-	if (ret == -1)
-	{
-		free_board(game->board);
-		return -1;
-	}
-
-	return 0;
+	return len == 0;
 }
 
-static int init_game(char** argv, t_game* game)
+static int init_game(int argc, char**argv, t_game* game)
 {
+	if (!argv || !game || argc != 4)
+		return 0;
+
 	game->width = atoi(argv[1]);
 	game->height = atoi(argv[2]);
 	game->iterations = atoi(argv[3]);
-	game->drawing = 0;
+	if (game->width < 1 || game->height < 1 || game->iterations < 0)
+		return 0;
+
 	game->x = 0;
 	game->y = 0;
-	game->alive = '0';
+	game->drawing = 0;
+	game->alive = 'O';
 	game->dead = '.';
 
-	if (init_board(game, &game->board))
-		return -1;
-
-	return 0;
+	return init_board(game, &game->board);
 }
 
 int main(int argc, char** argv)
 {
-	if (argc != 4)
-		return 1;
-
 	t_game game;
-	if (init_game(argv, &game) == -1)
+	if (!init_game(argc, argv, &game))
 		return 1;
 
-	if (draw_board(&game) == -1)
+	if (!draw(&game))
+	{
+		free_board(game.board);
 		return 1;
+	}
 
 	for (int i = 0; i < game.iterations; i++)
-		if (play(&game) == -1)
+	{
+		if (!play(&game))
+		{
+			free_board(game.board);
 			return 1;
+		}
+	}
 
 	print_board(&game);
 	free_board(game.board);
